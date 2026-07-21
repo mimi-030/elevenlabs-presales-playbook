@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Storefront</title>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:80px auto;
+       text-align:center;color:#222;padding:0 20px}
+  .hint{color:#777;font-size:14px;margin-top:8px}
+  .setup{background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:16px;
+         text-align:left;font-size:14px;line-height:1.7;margin-top:24px}
+  code{background:#f4f4f4;padding:2px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+  <h1>Test Storefront</h1>
+  <p class="hint">The ElevenLabs voice assistant button should appear in the bottom right.</p>
+
+  {% if agent_id %}
+  <elevenlabs-convai agent-id="{{ agent_id }}"></elevenlabs-convai>
+  <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+  {% else %}
+  <div class="setup">
+    <b>No agent configured yet.</b> Three steps to enable it:
+    <ol>
+      <li>Create an Agent in the ElevenLabs dashboard. Have the opening line disclose that
+        the caller is speaking to an AI and that the call may be recorded.</li>
+      <li>Add a webhook tool named <code>order_lookup</code> with the payload
+        <code>{phone, last_4_digits}</code>, pointing at this service's
+        <code>/api/webhook/order_lookup</code>. Use a tunnel for local testing.</li>
+      <li><code>cp .env.example .env</code>, fill in <code>ELEVEN_AGENT_ID</code>, restart.</li>
+    </ol>
+    Test order: phone <code>0912345678</code> with last four digits <code>5678</code>
+    returns order #889, arriving tomorrow.
+  </div>
+  {% endif %}
+</body>
+</html>

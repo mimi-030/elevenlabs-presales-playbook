@@ -1,0 +1,23 @@
+[
+  {
+    "id": "a001",
+    "title": "TSMC Q2 revenue up 15% as advanced nodes stay tight",
+    "author": "Mark Wang",
+    "date": "2026-07-10",
+    "body": "TSMC (2330) reported Q2 consolidated revenue up 15% year over year, ahead of consensus. Analysts point to sustained demand for advanced nodes and raised price targets by 8%. The company said 3nm utilization remains at a high level, with AI-related order visibility now extending into H1 2027. Capex guidance for FY2026 was left unchanged at $34B."
+  },
+  {
+    "id": "a002",
+    "title": "MediaTek unveils automotive chip aimed at smart cockpits",
+    "author": "Grace Lin",
+    "date": "2026-07-10",
+    "body": "MediaTek (2454) launched a new automotive platform today targeting smart cockpit and ADAS workloads. The company expects automotive revenue to contribute meaningfully from Q4, with annual growth of up to 30%. A foreign brokerage note argued the automotive push could become MediaTek's next growth engine, though margins are expected to lag the handset business by roughly 4%."
+  },
+  {
+    "id": "a003",
+    "title": "Central bank holds rates, keeps housing curbs in place",
+    "author": "Howard Chen",
+    "date": "2026-07-09",
+    "body": "The central bank board voted to hold the policy rate steady, leaving the rediscount rate at 2%. The governor said inflation pressure has eased but still warrants monitoring, and that the fifth round of selective credit controls will stay in force. Mortgage loan-to-value caps will not be relaxed this quarter. Q3 GDP growth is still projected at 2.8%."
+  }
+]

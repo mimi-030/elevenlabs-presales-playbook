@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patch 1.4 Voice Batch Console</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#131022; --panel:#1B1730; --line:#2E2850; --txt:#EAE6F5; --mut:#8E86AC;
+    --gold:#E5B94E;          /* completion */
+    --hero:#6FB8FF; --merchant:#F08FB6;   /* per-character colours */
+    --err:#E4572E; --ok:#5FCF9A;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--txt);
+       font-family:"Inter",system-ui,sans-serif;font-size:14px}
+  header{display:flex;justify-content:space-between;align-items:baseline;
+         padding:20px 28px;border-bottom:1px solid var(--line)}
+  header h1{font-size:16px;font-weight:700;letter-spacing:.1em}
+  header h1 b{color:var(--gold)}
+  .mode{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mut)}
+  main{max-width:960px;margin:0 auto;padding:24px 20px 80px;
+       display:flex;flex-direction:column;gap:24px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;
+        padding:18px 22px}
+  .card h2{font-size:13px;letter-spacing:.1em;color:var(--mut);margin-bottom:12px}
+
+  /* Cast board: voices as assets, made visible. */
+  .cast{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+  .voice{border:1px solid var(--line);border-radius:5px;padding:10px 12px}
+  .voice .who{font-weight:700;font-size:13.5px}
+  .voice .who.hero{color:var(--hero)} .voice .who.merchant{color:var(--merchant)}
+  .voice .vid{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--mut);
+              margin-top:4px;word-break:break-all}
+
+  /* Per-language progress, styled like a game loading bar. */
+  .langs{display:flex;flex-direction:column;gap:12px}
+  .lang .row{display:flex;justify-content:space-between;font-size:12.5px;
+             font-family:"IBM Plex Mono",monospace;margin-bottom:5px}
+  .bar{height:16px;background:#0D0A1C;border:1px solid var(--line);
+       border-radius:8px;overflow:hidden;display:flex}
+  .bar .fill{background:var(--gold);height:100%}
+  .bar .fail{background:var(--err);height:100%}
+
+  .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  button{font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;
+         border-radius:4px;border:1px solid var(--line);
+         background:#241E42;color:var(--txt);padding:9px 18px}
+  button:hover{border-color:var(--mut)}
+  button:disabled{opacity:.45;cursor:wait}
+  button.gold{border-color:var(--gold);color:var(--gold)}
+  button.retry{border-color:var(--err);color:var(--err)}
+  .cost{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;
+        color:var(--mut)}
+  .cost b{color:var(--gold);font-size:16px}
+
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);
+        vertical-align:middle}
+  th{font-size:11.5px;color:var(--mut);font-weight:500;letter-spacing:.06em}
+  td.mono{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mut)}
+  .who{font-weight:700}
+  .who.hero{color:var(--hero)} .who.merchant{color:var(--merchant)}
+  .who.ghost{color:var(--mut)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;
+       border:1.5px solid;border-radius:4px;padding:1px 7px}
+  .tag.ok{color:var(--ok);border-color:var(--ok)}
+  .tag.failed{color:var(--err);border-color:var(--err)}
+  .tag.none{color:var(--mut);border-color:var(--line);font-weight:400}
+  .errmsg{font-size:11.5px;color:var(--err);margin-top:3px;max-width:240px}
+  audio{height:28px;width:190px;vertical-align:middle}
+  .note{font-size:12px;color:var(--mut);line-height:1.8}
+</style>
+</head>
+<body>
+<header>
+  <h1>STARFALL ERA &middot; <b>PATCH 1.4 VOICE BATCH CONSOLE</b></h1>
+  <span class="mode">MODE: {{ 'MOCK (placeholder tones, zero cost)' if mock else 'REAL (' + model + ')' }}</span>
+</header>
+<main>
+
+  <div class="card">
+    <h2>VOICE REGISTRY &mdash; a voice is an asset: (character &times; language) &rarr; voice_id</h2>
+    <div class="cast">
+      {% for (char, lang), vid in registry.items() %}
+      <div class="voice">
+        <div class="who {{ char }}">{{ char_names.get(char, char) }} &middot; {{ lang|upper }}</div>
+        <div class="vid">{{ vid }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>BATCH PROGRESS BY LANGUAGE</h2>
+    <div class="langs">
+      {% for lang, x in s.langs.items() %}
+      <div class="lang">
+        <div class="row">
+          <span>{{ lang|upper }}</span>
+          <span>{{ x.ok }}/{{ x.total }} done{% if x.failed %} &middot; {{ x.failed }} failed{% endif %}</span>
+        </div>
+        <div class="bar">
+          <div class="fill" style="width:{{ (x.ok / x.total * 100)|round(1) }}%"></div>
+          <div class="fail" style="width:{{ (x.failed / x.total * 100)|round(1) }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="toolbar" style="margin-top:16px">
+      <button class="gold" onclick="call('/api/run', this)">&#9654; Run batch (unchanged lines are skipped)</button>
+      <button class="retry" onclick="call('/api/retry_failed', this)"
+              {{ 'disabled' if not s.failed_ids }}>&#8635; Retry failures only ({{ s.failed_ids|length }})</button>
+      <span class="cost">characters generated <b>{{ s.total_chars }}</b> (&asymp; credit usage)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>LINES ({{ lines|length }}) &mdash; L009 has no registered voice on purpose</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Character</th><th>Lang</th><th>Line</th><th>Status</th><th>Preview / retries</th></tr></thead>
+      <tbody>
+      {% for ln in lines %}
+        {% set e = manifest.get(ln.line_id, {}) %}
+        <tr>
+          <td class="mono">{{ ln.line_id }}</td>
+          <td class="who {{ ln.character }}">{{ char_names.get(ln.character, ln.character) }}</td>
+          <td class="mono">{{ ln.lang|upper }}</td>
+          <td>{{ ln.text }}</td>
+          <td>
+            {% if e.get('status') == 'ok' %}<span class="tag ok">OK</span>
+            {% elif e.get('status') == 'failed' %}<span class="tag failed">FAILED</span>
+              <div class="errmsg">{{ e.get('error') }}</div>
+            {% else %}<span class="tag none">not generated</span>{% endif %}
+          </td>
+          <td class="mono">
+            {% if e.get('status') == 'ok' %}
+              <audio controls preload="none" src="/static/audio/{{ e.file }}"></audio>
+              {% if e.get('attempts', 1) > 1 %}<div>&#8635; succeeded after {{ e.attempts - 1 }} retries</div>{% endif %}
+            {% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="note" style="margin-top:12px">
+      The ghost line L009 has no entry in the voice registry. The batch still finishes the
+      other nine, the failure is recorded in the manifest, and "retry failures only" re-runs
+      just that one. At 300,000 lines this is the difference between a bad night and a bad
+      month. The manifest lives in <span class="mono">data/manifest.json</span> and serves
+      three jobs at once: audit trail, retry driver, and usage reconciliation.
+    </p>
+  </div>
+</main>
+<script>
+  async function call(url, btn){
+    btn.disabled = true; btn.textContent = "Running batch…";
+    try { await fetch(url, {method:"POST"}); } finally { location.reload(); }
+  }
+</script>
+</body>
+</html>

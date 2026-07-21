@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Console | Meridian Financial</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#12161F;--panel:#1A2130;--line:#2A3347;--txt:#E7EAF0;
+        --mut:#8A93A6;--seal:#D64545;--ok:#3FA97A;--warn:#D9A441}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--txt);
+       font-family:"Inter",system-ui,sans-serif;font-size:14px}
+  header{display:flex;justify-content:space-between;align-items:center;
+         padding:18px 26px;border-bottom:1px solid var(--line)}
+  header h1{font-size:15px;font-weight:700;letter-spacing:.1em}
+  header h1 em{font-style:normal;color:var(--seal)}
+  .mode{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mut)}
+  main{max-width:900px;margin:0 auto;padding:26px 20px 60px}
+
+  .stats{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+        padding:12px 18px;min-width:170px}
+  .stat .n{font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:600}
+  .stat .l{font-size:12px;color:var(--mut);margin-top:2px}
+
+  .toolbar{display:flex;justify-content:flex-end;margin-bottom:10px}
+  button{font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;
+         border-radius:3px;border:1px solid var(--line);
+         background:var(--panel);color:var(--txt);padding:7px 14px}
+  button:hover{border-color:var(--mut)}
+  button.primary{background:var(--seal);border-color:var(--seal);color:#fff}
+  button:disabled{opacity:.5;cursor:wait}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);
+        border:1px solid var(--line);border-radius:4px;overflow:hidden}
+  th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);
+        vertical-align:middle}
+  th{font-size:12px;color:var(--mut);font-weight:500;letter-spacing:.06em}
+  td.mono{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--mut)}
+
+  /* Signature element: rubber-stamp status badges. */
+  .seal{display:inline-block;border:1.5px solid;border-radius:4px;
+        font-size:12px;font-weight:700;letter-spacing:.15em;
+        padding:2px 8px;transform:rotate(-2deg)}
+  .seal.ready{color:var(--seal);border-color:var(--seal)}
+  .seal.failed{color:var(--warn);border-color:var(--warn)}
+  .seal.none{color:var(--mut);border-color:var(--line);transform:none;
+             font-weight:400;letter-spacing:.04em}
+  .err{font-size:12px;color:var(--warn);margin-top:4px;max-width:260px}
+  .rowbtns{display:flex;gap:8px}
+  a.view{color:var(--mut);font-size:12px}
+  .note{margin-top:16px;font-size:12px;color:var(--mut);line-height:1.8}
+</style>
+</head>
+<body>
+<header>
+  <h1>MERIDIAN FINANCIAL &middot; <em>AUDIO CONSOLE</em></h1>
+  <span class="mode">MODE: {{ 'MOCK (placeholder tone, zero cost)' if mock else 'REAL (ElevenLabs API)' }}</span>
+</header>
+<main>
+  <div class="stats">
+    <div class="stat"><div class="n">{{ articles|length }}</div><div class="l">Articles</div></div>
+    <div class="stat"><div class="n">{{ manifest.values()|selectattr('status','equalto','ready')|list|length }}</div><div class="l">Generated</div></div>
+    <div class="stat"><div class="n">{{ '{:,}'.format(total_chars) }}</div><div class="l">Characters generated (&asymp; monthly usage)</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" onclick="call('/api/generate_all', this)">Generate all (unchanged articles are skipped)</button>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Article</th><th>Status</th><th>Chars</th><th>Generated / last action</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+    {% for a in articles %}
+      {% set e = manifest.get(a.id, {}) %}
+      <tr>
+        <td>{{ a.title }}<br><a class="view" href="/article/{{ a.id }}" target="_blank">Open reader view &#8599;</a></td>
+        <td>
+          {% if e.get('status') == 'ready' %}<span class="seal ready">READY</span>
+          {% elif e.get('status') == 'failed' %}<span class="seal failed">FAILED</span>
+            <div class="err">{{ e.get('error','') }}</div>
+          {% else %}<span class="seal none">not generated</span>{% endif %}
+        </td>
+        <td class="mono">{{ e.get('chars', a.body|length) }}</td>
+        <td class="mono">{{ e.get('generated_at','&mdash;')|safe }}<br>{{ e.get('last_action','') }}</td>
+        <td class="rowbtns">
+          <button onclick="call('/api/generate/{{ a.id }}', this)">Generate</button>
+          <button onclick="call('/api/regenerate/{{ a.id }}', this)">Force regenerate</button>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="note">
+    <b>Generate</b> goes through the cache: if the content fingerprint has not changed it is
+    skipped at zero cost. Click it twice and watch the "last action" column.<br>
+    <b>Force regenerate</b> ignores the cache. Useful for a demo; in production this button
+    belongs behind a permission check.<br>
+    Failures are recorded with their error message and can be retried. An error is never
+    swallowed silently.
+  </p>
+</main>
+<script>
+  async function call(url, btn){
+    btn.disabled = true; btn.textContent = "Working…";
+    try { await fetch(url, {method:"POST"}); } finally { location.reload(); }
+  }
+</script>
+</body>
+</html>

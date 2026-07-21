@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Read-Along Classroom | Player</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@700;900&family=Inter:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--paper:#FBF8F2;--ink:#26241F;--line:#E2DCCB;--marker:#FFD84D;
+        --teal:#1F8A82;--mut:#8A8474;--spkB:#C56A9A}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--paper);color:var(--ink);
+       font-family:"Inter",system-ui,sans-serif}
+  header{max-width:760px;margin:0 auto;padding:26px 22px 0;display:flex;
+         justify-content:space-between;align-items:baseline}
+  header h1{font-family:"Noto Serif",Georgia,serif;font-weight:900;font-size:22px}
+  header h1 mark{background:linear-gradient(transparent 55%, var(--marker) 55%);padding:0 2px}
+  header a{font-size:13px;color:var(--teal)}
+  main{max-width:760px;margin:0 auto;padding:18px 22px 80px}
+
+  .deck{position:sticky;top:0;background:var(--paper);padding:14px 0 12px;
+        border-bottom:1.5px solid var(--line);z-index:5}
+  audio{width:100%;height:42px}
+  .controls{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  select{font:inherit;font-size:13px;padding:5px 10px;border:1.5px solid var(--line);
+         border-radius:5px;background:#fff}
+  .status{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12px;
+          color:var(--mut)}
+  .status b{color:var(--teal)}
+  .status .silence{color:var(--mut);font-style:italic}
+
+  .transcript{margin-top:26px;font-size:21px;line-height:2.35;
+              font-family:"Noto Serif",Georgia,serif;word-break:break-word}
+  .w{cursor:pointer;padding:2px 1px;border-radius:3px;transition:background .08s}
+  .w:hover{background:#EFE9D8}
+  .w.spkB{color:var(--spkB)}
+  /* Signature element: the current word swept by a highlighter pen. */
+  .w.active{background:linear-gradient(transparent 12%, var(--marker) 12%);
+            font-weight:700}
+  .w.dim{opacity:.45}                 /* speakers filtered out are dimmed, not hidden */
+  .hint{margin-top:24px;font-size:12.5px;color:var(--mut);line-height:1.9;
+        border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Read-Along <mark>Player</mark></h1>
+  <a href="/">&larr; Use a different recording</a>
+</header>
+<main>
+  <div class="deck">
+    <audio id="player" controls preload="metadata"
+           src="/static/uploads/{{ proj.audio }}"></audio>
+    <div class="controls">
+      <label style="font-size:13px">Speed
+        <select id="speed" onchange="player.playbackRate = +this.value">
+          <option>0.75</option><option selected>1</option>
+          <option>1.25</option><option>1.5</option><option>2</option>
+        </select>
+      </label>
+      {% if speakers|length > 1 %}
+      <label style="font-size:13px">Speaker
+        <select id="spk">
+          <option value="">All</option>
+          {% for s in speakers %}<option value="{{ s }}">Speaker {{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endif %}
+      <span class="status" id="status">t=0.0s</span>
+    </div>
+  </div>
+
+  <div class="transcript" id="tx"></div>
+
+  <p class="hint">
+    <b>Click any word</b> to jump to that second: the reverse lookup is just
+    <code>words[i].start</code>, O(1).
+    The highlight comes from a <b>stateless binary search</b> run every 100ms, which is why
+    dragging the scrubber anywhere still resolves correctly. Gaps between sentences show
+    <i>(silence)</i> rather than leaving the previous word lit, and playing past the last
+    word does not break. Those three behaviours are the edge cases covered by the tests in
+    <code>sync_logic.py</code>.
+  </p>
+</main>
+
+<script>
+const WORDS = {{ proj.words | tojson }};   // [{text,start,end,speaker}], sorted by start
+const player = document.getElementById("player");
+const tx = document.getElementById("tx");
+const statusEl = document.getElementById("status");
+const spkSel = document.getElementById("spk");
+
+/* ---- Render one clickable span per word ---- */
+tx.innerHTML = WORDS.map((w, i) =>
+  `<span class="w ${w.speaker === 'B' ? 'spkB' : ''}" data-i="${i}"
+         title="${w.start}s to ${w.end}s (${w.speaker})">${w.text}</span>`
+).join("");
+
+/* Click to seek: the reverse lookup is O(1), every word knows its own start. */
+tx.addEventListener("click", e => {
+  const s = e.target.closest(".w");
+  if (!s) return;
+  player.currentTime = WORDS[+s.dataset.i].start;
+  player.play();
+});
+
+/* ---- Core: a JS mirror of sync_logic.py, logic for logic ---- */
+function findActive(words, t, speakerFilter){
+  if (!words.length || t < words[0].start || t > words[words.length-1].end)
+    return null;                                   // out of range
+  let lo = 0, hi = words.length - 1, ans = -1;
+  while (lo <= hi){                                // binary search: stateless, seek-proof
+    const mid = (lo + hi) >> 1;
+    if (words[mid].start <= t){ ans = mid; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  if (ans < 0 || t > words[ans].end) return null;  // silence between words: highlight nothing
+  if (speakerFilter && words[ans].speaker !== speakerFilter) return null;
+  return ans;
+}
+
+/* ---- Refresh the highlight every 100ms (the player tick) ---- */
+let lastActive = -1;
+setInterval(() => {
+  const t = player.currentTime;
+  const filter = spkSel ? spkSel.value : "";
+  const i = findActive(WORDS, t, filter || null);
+
+  if (i !== lastActive){
+    if (lastActive >= 0) tx.children[lastActive].classList.remove("active");
+    if (i !== null){
+      tx.children[i].classList.add("active");
+      tx.children[i].scrollIntoView({block: "center", behavior: "smooth"});
+    }
+    lastActive = (i === null) ? -1 : i;
+  }
+  /* Speaker filter is purely visual: filtered-out speakers dim. */
+  if (spkSel){
+    for (const s of tx.children)
+      s.classList.toggle("dim",
+        !!filter && WORDS[+s.dataset.i].speaker !== filter);
+  }
+  statusEl.innerHTML = `t=${t.toFixed(1)}s → ` +
+    (i === null ? `<span class="silence">(silence)</span>`
+                : `<b>${WORDS[i].text}</b> [${WORDS[i].start}–${WORDS[i].end}s]`);
+}, 100);
+</script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dubbing Review Board | EP03</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#191512; --panel:#211C17; --line:#3A3229; --txt:#EDE7DD; --mut:#9A8F80;
+    --amber:#D9A441;   /* in_review */
+    --red:#D64545;     /* changes_requested / reject */
+    --green:#4FA97C;   /* approved */
+    --warn:#E8853D;    /* edited after approval */
+    --blue:#5D9BD4;    /* regenerating */
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--txt);
+       font-family:"Inter",system-ui,sans-serif;font-size:14px}
+  header{display:flex;align-items:center;gap:18px;padding:14px 22px;
+         border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:15px;font-weight:700;letter-spacing:.08em}
+  header h1 b{color:var(--warn)}
+  .progress{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--mut)}
+  .progress b{color:var(--green)}
+  select{font:inherit;font-size:12.5px;background:var(--panel);color:var(--txt);
+         border:1px solid var(--line);border-radius:4px;padding:5px 9px}
+  .roles{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mut)}
+  .roles button{font:inherit;font-size:12.5px;cursor:pointer;border-radius:4px;
+                border:1px solid var(--line);background:var(--panel);
+                color:var(--mut);padding:5px 12px}
+  .roles button.on{border-color:var(--amber);color:var(--amber);font-weight:700}
+  .mode{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--mut)}
+
+  .wrap{display:flex;max-width:1080px;margin:0 auto;min-height:calc(100vh - 60px)}
+  /* -------- left column: the line list -------- */
+  .list{width:44%;border-right:1px solid var(--line);padding:14px 0}
+  .row{padding:11px 18px;cursor:pointer;border-left:3px solid transparent}
+  .row:hover{background:#241E18}
+  .row.sel{background:#282219;border-left-color:var(--amber)}
+  .row .top{display:flex;gap:10px;align-items:center;
+            font-family:"IBM Plex Mono",monospace;font-size:12px}
+  .row .txt{margin-top:3px;font-size:13.5px;color:var(--txt);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .st{font-weight:700;letter-spacing:.03em}
+  .st.in_review{color:var(--amber)} .st.approved{color:var(--green)}
+  .st.changes_requested{color:var(--red)} .st.draft{color:var(--mut)}
+  .st.regenerating{color:var(--blue);animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.4}}
+  .caa{color:var(--warn);font-weight:700}     /* edited after approval */
+
+  /* -------- right column: detail -------- */
+  .detail{flex:1;padding:20px 24px}
+  .detail .id{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mut)}
+  .detail .src{color:var(--mut);font-size:13px;margin:8px 0 2px}
+  .detail textarea{width:100%;font:inherit;font-size:16px;line-height:1.7;
+       background:var(--panel);color:var(--txt);border:1px solid var(--line);
+       border-radius:5px;padding:10px 12px;min-height:74px;resize:vertical;margin-top:6px}
+  .detail textarea:disabled{opacity:.6}
+  audio{width:100%;height:36px;margin:12px 0 4px}
+  .genmsg{font-size:12.5px;color:var(--blue);min-height:18px}
+  .btns{display:flex;gap:10px;margin:14px 0 8px;flex-wrap:wrap}
+  .btns button{font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+       border-radius:4px;padding:9px 16px;border:1.5px solid}
+  .b-approve{border-color:var(--green);color:var(--green);background:transparent}
+  .b-reject{border-color:var(--red);color:var(--red);background:transparent}
+  .b-save{border-color:var(--amber);color:var(--amber);background:transparent}
+  .b-submit{border-color:var(--blue);color:var(--blue);background:transparent}
+  .b-conflict{border-color:var(--line);color:var(--mut);background:transparent;font-weight:400}
+  .btns button:disabled{opacity:.32;cursor:not-allowed}
+  .toast{font-size:13px;min-height:20px;margin-bottom:10px}
+  .toast.err{color:var(--red)} .toast.okk{color:var(--green)}
+
+  h3{font-size:12px;letter-spacing:.12em;color:var(--mut);margin:16px 0 8px}
+  .hist{border-left:2px solid var(--line);padding-left:14px;
+        display:flex;flex-direction:column;gap:9px}
+  .h{font-size:12.5px}
+  .h .l1{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--mut)}
+  .h .l1 b{color:var(--txt)}
+  .h.warn .l1 b{color:var(--warn)}
+  .h .c{color:var(--mut);font-style:italic}
+  .empty{color:var(--mut);padding:40px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>EP03 &middot; DUBBING <b>REVIEW BOARD</b></h1>
+  <span class="progress" id="prog"></span>
+  <select id="filter" onchange="render()">
+    <option value="">Filter: all</option>
+    <option value="in_review">Needs review</option>
+    <option value="changes_requested">Changes requested</option>
+    <option value="approved">Approved</option>
+    <option value="caa">Edited after approval</option>
+  </select>
+  <div class="roles">
+    Acting as:
+    <button id="r-translator" class="on" onclick="setRole('translator','amy')">Translator (Amy)</button>
+    <button id="r-reviewer" onclick="setRole('reviewer','bob')">Reviewer (Bob)</button>
+    <span class="mode">MODE: {{ 'MOCK' if mock else 'REAL' }}</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="list" id="list"></div>
+  <div class="detail" id="detail"><div class="empty">&larr; Select a line</div></div>
+</div>
+
+<script>
+let LINES = [], SEL = null, ROLE = "translator", ACTOR = "amy";
+const LABEL = {in_review:"in review", approved:"approved",
+               changes_requested:"changes requested", draft:"draft",
+               regenerating:"regenerating…"};
+
+function setRole(role, actor){
+  ROLE = role; ACTOR = actor;
+  document.getElementById("r-translator").classList.toggle("on", role==="translator");
+  document.getElementById("r-reviewer").classList.toggle("on", role==="reviewer");
+  render();
+}
+
+async function refresh(){
+  LINES = await (await fetch("/api/lines")).json();
+  render();
+  // If something is generating, poll faster: the state flips to "in review" on its own
+  // the moment the audio file lands.
+  const busy = LINES.some(l => l.status === "regenerating");
+  setTimeout(refresh, busy ? 1200 : 4000);
+}
+
+function render(){
+  const filter = document.getElementById("filter").value;
+  const shown = LINES.filter(l =>
+    !filter || (filter === "caa" ? l.changed_after_approval : l.status === filter));
+  const approved = LINES.filter(l => l.status === "approved").length;
+  document.getElementById("prog").innerHTML =
+    `<b>${approved}</b>/${LINES.length} approved`;
+
+  document.getElementById("list").innerHTML = shown.map(l => `
+    <div class="row ${SEL === l.id ? "sel" : ""}" onclick="select('${l.id}')">
+      <div class="top">
+        <span>#${l.id}</span>
+        <span class="st ${l.status}">${LABEL[l.status]}</span>
+        ${l.changed_after_approval ? '<span class="caa">edited after approval</span>' : ""}
+      </div>
+      <div class="txt">${l.character}: ${l.text}</div>
+    </div>`).join("") || `<div class="empty">No lines match this filter</div>`;
+
+  if (SEL) renderDetail(LINES.find(l => l.id === SEL));
+}
+
+function select(id){ SEL = id; render(); }
+
+function renderDetail(l){
+  if (!l) return;
+  const regen = l.status === "regenerating";
+  // Button availability mirrors the rule table. The server re-checks every action:
+  // this is a convenience, not the access control.
+  const canEdit   = ROLE === "translator" && ["draft","changes_requested","approved"].includes(l.status);
+  const canSubmit = ROLE === "translator" && ["draft","changes_requested"].includes(l.status);
+  const canReview = ROLE === "reviewer" && l.status === "in_review";
+
+  document.getElementById("detail").innerHTML = `
+    <div class="id">#${l.id} &middot; ${l.character} &middot; v${l.version}
+      ${l.changed_after_approval ? '<span class="caa">&nbsp; edited after approval, needs re-approval</span>' : ""}</div>
+    <div class="src">Source: ${l.source || "—"}</div>
+    <textarea id="txt" ${canEdit ? "" : "disabled"}>${l.text}</textarea>
+
+    ${l.file ? `<audio controls preload="none" src="/static/audio/${l.file}"></audio>` : ""}
+    <div class="genmsg">${regen ? "Generating a new take (this takes minutes in production). Approve is locked so nobody signs off on the old audio." : ""}</div>
+
+    <div class="toast" id="toast"></div>
+    <div class="btns">
+      <button class="b-save"    ${canEdit   ? "" : "disabled"} onclick="act('edit')">Save edit</button>
+      <button class="b-submit"  ${canSubmit ? "" : "disabled"} onclick="act('submit')">Submit for review</button>
+      <button class="b-approve" ${canReview && !regen ? "" : "disabled"} onclick="act('approve')">Approve</button>
+      <button class="b-reject"  ${canReview ? "" : "disabled"} onclick="act('reject')">Reject with a note</button>
+      <button class="b-conflict" onclick="conflictDemo()">Simulate a concurrent edit (save a stale version)</button>
+    </div>
+
+    <h3>HISTORY (transition log)</h3>
+    <div class="hist">${[...l.transitions].reverse().map(t => `
+      <div class="h ${t.from === "approved" && t.action === "edit" ? "warn" : ""}">
+        <div class="l1"><b>${t.action}</b> &nbsp; ${t.actor} (${t.role}) &nbsp; ${t.from} &rarr; ${t.to} &nbsp; ${t.at}</div>
+        ${t.comment ? `<div class="c">${t.comment}</div>` : ""}
+      </div>`).join("")}
+    </div>`;
+}
+
+async function act(action){
+  const l = LINES.find(x => x.id === SEL);
+  const body = {action, actor: ACTOR, role: ROLE};
+  if (action === "edit"){
+    body.text = document.getElementById("txt").value;
+    body.version = l.version;                       // send the version you were looking at
+  }
+  if (action === "reject"){
+    const comment = prompt("Why is this being sent back? (goes into the audit log)", "");
+    if (comment === null) return;
+    body.comment = comment;
+  }
+  const r = await fetch(`/api/action/${SEL}`, {method: "POST",
+    headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const d = await r.json();
+  const toast = document.getElementById("toast");
+  if (!r.ok){ toast.className = "toast err"; toast.textContent = "Blocked: " + d.error; }
+  else { toast.className = "toast okk"; toast.textContent = action + " done"; }
+  LINES = await (await fetch("/api/lines")).json();
+  render();
+}
+
+/* Demo of the optimistic lock: deliberately save against version-1. The server
+   answers 409, which is the proof that a concurrent edit is never silently lost. */
+async function conflictDemo(){
+  const l = LINES.find(x => x.id === SEL);
+  const r = await fetch(`/api/action/${SEL}`, {method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action: "edit", actor: "carl", role: "translator",
+                          text: l.text + " (overwritten from a stale copy)",
+                          version: l.version - 1})});
+  const d = await r.json();
+  const toast = document.getElementById("toast");
+  toast.className = "toast err";
+  toast.textContent = "409 Conflict: " + d.error;
+}
+
+refresh();
+</script>
+</body>
+</html>

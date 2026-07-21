@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meridian Financial</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@600;900&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBFAF6; --ink:#17202E; --rule:#D8D4C8;
+    --up:#C8102E;            /* brand red, also the "up" colour on the tape */
+    --muted:#6B7280;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--paper);color:var(--ink);
+       font-family:"Inter",system-ui,sans-serif;line-height:1.7}
+  .masthead{max-width:760px;margin:0 auto;padding:34px 20px 14px;
+            border-bottom:3px double var(--ink);display:flex;
+            align-items:baseline;justify-content:space-between}
+  .masthead h1{font-family:"Noto Serif",Georgia,serif;font-weight:900;
+               font-size:32px;letter-spacing:.16em}
+  .masthead h1 span{color:var(--up)}
+  .masthead .date{font-size:13px;color:var(--muted);letter-spacing:.1em}
+  main{max-width:760px;margin:0 auto;padding:10px 20px 60px}
+  .item{padding:26px 0;border-bottom:1px solid var(--rule)}
+  .item a{color:inherit;text-decoration:none}
+  .item h2{font-family:"Noto Serif",Georgia,serif;font-weight:600;font-size:23px;
+           line-height:1.5}
+  .item a:hover h2{color:var(--up)}
+  .meta{margin-top:8px;font-size:13px;color:var(--muted);
+        display:flex;gap:14px;align-items:center}
+  .listen{color:var(--up);font-weight:700;font-size:12px;
+          border:1px solid var(--up);border-radius:2px;padding:1px 8px;
+          letter-spacing:.15em}
+  footer{max-width:760px;margin:0 auto;padding:18px 20px;font-size:12px;
+         color:var(--muted)}
+  footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <h1>MERIDIAN<span>&nbsp;Financial</span></h1>
+    <div class="date">July 11, 2026 &middot; PoC build</div>
+  </header>
+  <main>
+    {% for a in articles %}
+    <article class="item">
+      <a href="/article/{{ a.id }}">
+        <h2>{{ a.title }}</h2>
+        <div class="meta">
+          <span>{{ a.author }}</span><span>{{ a.date }}</span>
+          {% if manifest.get(a.id, {}).get('status') == 'ready' %}
+            <span class="listen">&#9673; LISTEN</span>
+          {% endif %}
+        </div>
+      </a>
+    </article>
+    {% endfor %}
+  </main>
+  <footer>Sample data for demo purposes. Editors: open the <a href="/admin">audio admin console</a>.</footer>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Read-Along Classroom | Upload</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@700;900&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--paper:#FBF8F2;--ink:#26241F;--line:#E2DCCB;--marker:#FFD84D;
+        --teal:#1F8A82;--mut:#8A8474}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--paper);color:var(--ink);
+       font-family:"Inter",system-ui,sans-serif;line-height:1.8}
+  main{max-width:620px;margin:0 auto;padding:60px 22px}
+  h1{font-family:"Noto Serif",Georgia,serif;font-weight:900;font-size:30px}
+  h1 mark{background:linear-gradient(transparent 55%, var(--marker) 55%);padding:0 2px}
+  .sub{color:var(--mut);font-size:13.5px;margin:10px 0 30px}
+  .field{margin-bottom:22px}
+  label{display:block;font-weight:700;font-size:14px;margin-bottom:8px}
+  label small{font-weight:400;color:var(--mut)}
+  input[type=file]{width:100%;padding:12px;border:1.5px dashed var(--line);
+                   border-radius:6px;background:#fff;font-size:13px}
+  textarea{width:100%;min-height:130px;padding:12px 14px;border:1.5px solid var(--line);
+           border-radius:6px;font:inherit;font-size:15px;background:#fff;resize:vertical}
+  textarea:focus,input:focus{outline:2px solid var(--teal);border-color:transparent}
+  button{font:inherit;font-weight:700;font-size:15px;cursor:pointer;color:#fff;
+         background:var(--teal);border:none;border-radius:6px;padding:13px 26px;width:100%}
+  button:disabled{opacity:.5;cursor:wait}
+  .msg{margin-top:16px;font-size:14px;min-height:22px}
+  .msg.err{color:#B4372C}
+  .msg a{color:var(--teal);font-weight:700}
+  .how{margin-top:36px;border-top:1px solid var(--line);padding-top:18px;
+       font-size:12.5px;color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Read-Along <mark>Classroom</mark></h1>
+  <p class="sub">
+    {% if mock %}<b>MOCK mode.</b> Upload a recording you made yourself and paste what you
+    said. The words are laid out across the timeline, which exercises the entire sync UI at
+    zero cost. Set ELEVEN_KEY to switch to REAL mode: the transcript field disappears and
+    the timestamps come from Scribe.
+    {% else %}<b>REAL mode.</b> Upload a recording and ElevenLabs Scribe returns a real
+    timestamp for every word.{% endif %}
+  </p>
+
+  <div class="field">
+    <label>Recording <small>(mp3 / wav / m4a / webm &mdash; anything from Voice Recorder,
+      QuickTime, or your phone works)</small></label>
+    <input type="file" id="audio" accept="audio/*">
+  </div>
+
+  {% if mock %}
+  <div class="field">
+    <label>What you said <small>(a longer gap is inserted after each sentence ending, which
+      is exactly what you need to verify that silence highlights nothing)</small></label>
+    <textarea id="transcript" placeholder="e.g. Today we will learn three new words. The first word is resilience. It means the ability to recover quickly."></textarea>
+  </div>
+  {% endif %}
+
+  <button id="go" onclick="submitRecording()">Build the synced player &rarr;</button>
+  <div class="msg" id="msg"></div>
+
+  <div class="how">
+    To see the edge cases for yourself: <b>pause for one or two seconds between sentences</b>
+    while recording (silence must not highlight anything), <b>drag the scrubber back and
+    forth</b> during playback (any seek position must resolve correctly), and <b>let it play
+    to the very end</b> (going past the last word must not break).
+  </div>
+</main>
+<script>
+async function submitRecording(){
+  const file = document.getElementById("audio").files[0];
+  const msg = document.getElementById("msg");
+  const btn = document.getElementById("go");
+  if(!file){ msg.className="msg err"; msg.textContent="Choose a recording first"; return; }
+
+  // Read the real duration in the browser; MOCK mode needs it to lay out the timeline.
+  const duration = await new Promise(res => {
+    const a = new Audio(URL.createObjectURL(file));
+    a.onloadedmetadata = () => res(isFinite(a.duration) ? a.duration : 0);
+    a.onerror = () => res(0);
+  });
+
+  const fd = new FormData();
+  fd.append("audio", file);
+  fd.append("duration", duration);
+  const ta = document.getElementById("transcript");
+  if (ta) fd.append("transcript", ta.value);
+
+  btn.disabled = true; btn.textContent = "Working… (REAL mode takes up to a minute)";
+  const r = await fetch("/api/transcribe", {method:"POST", body: fd});
+  const d = await r.json();
+  btn.disabled = false; btn.textContent = "Build the synced player →";
+  if (d.error){ msg.className="msg err"; msg.textContent = d.error; return; }
+  msg.className="msg";
+  msg.innerHTML = `Done, ${d.words} words → <a href="${d.player}">open the player</a>`;
+  location.href = d.player;
+}
+</script>
+</body>
+</html>

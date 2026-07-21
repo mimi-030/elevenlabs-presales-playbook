@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latency Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1420; --panel:#151D2C; --line:#26314A; --txt:#E5EAF4; --mut:#7E8AA3;
+    --llm:#E8A33D;        /* LLM track: amber */
+    --tts:#4FA3E3;        /* TTS track: signal blue */
+    --first:#52E19F;      /* first-audio marker: scope green */
+    --err:#E4572E;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--txt);
+       font-family:"Inter",system-ui,sans-serif;font-size:14px}
+  header{display:flex;justify-content:space-between;align-items:baseline;
+         padding:20px 28px;border-bottom:1px solid var(--line)}
+  header h1{font-size:16px;font-weight:700;letter-spacing:.12em}
+  header h1 b{color:var(--first)}
+  .mode{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mut)}
+  main{max-width:980px;margin:0 auto;padding:26px 20px 80px;
+       display:flex;flex-direction:column;gap:34px}
+
+  section{background:var(--panel);border:1px solid var(--line);
+          border-radius:6px;padding:22px 24px}
+  section h2{font-size:15px;letter-spacing:.06em;margin-bottom:4px}
+  section .sub{font-size:12.5px;color:var(--mut);margin-bottom:16px;line-height:1.8}
+  button{font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;
+         border-radius:4px;border:1px solid var(--line);
+         background:#1C2638;color:var(--txt);padding:8px 16px}
+  button:hover{border-color:var(--mut)}
+  button:disabled{opacity:.45;cursor:wait}
+  button.go{border-color:var(--first);color:var(--first)}
+
+  /* ---- Experiment A: TTFB readouts + timeline ---- */
+  .clocks{display:flex;gap:16px;margin:18px 0;flex-wrap:wrap}
+  .clock{flex:1;min-width:210px;border:1px solid var(--line);border-radius:6px;
+         padding:14px 18px}
+  .clock .l{font-size:12px;color:var(--mut);letter-spacing:.08em}
+  .clock .n{font-family:"IBM Plex Mono",monospace;font-size:40px;font-weight:600;
+            margin-top:2px}
+  .clock .n small{font-size:16px;color:var(--mut)}
+  .clock.before .n{color:var(--err)}
+  .clock.after .n{color:var(--first)}
+  .clock.gain .n{color:var(--txt)}
+  .lane{margin-top:14px}
+  .lane .name{font-size:12px;color:var(--mut);margin-bottom:5px;
+              font-family:"IBM Plex Mono",monospace}
+  .track{position:relative;height:34px;background:#0B1120;border:1px solid var(--line);
+         border-radius:4px;overflow:hidden}
+  .seg{position:absolute;top:6px;height:22px;border-radius:3px;font-size:10.5px;
+       display:flex;align-items:center;padding:0 6px;white-space:nowrap;
+       overflow:hidden;color:#0B1120;font-weight:700}
+  .seg.llm{background:var(--llm)}
+  .seg.tts{background:var(--tts)}
+  .mark{position:absolute;top:0;bottom:0;width:2px;background:var(--first)}
+  .mark::after{content:"first audio";position:absolute;top:-1px;left:4px;
+               font-size:10px;color:var(--first);font-family:"IBM Plex Mono",monospace}
+  .ruler{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);
+         font-family:"IBM Plex Mono",monospace;margin-top:3px}
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--mut);margin-top:12px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:2px;
+       vertical-align:-1px;margin-right:5px}
+
+  /* ---- Experiment B: request chip wall ---- */
+  .stressbtns{display:flex;gap:12px;margin-bottom:16px}
+  .cols{display:flex;gap:18px;flex-wrap:wrap}
+  .col{flex:1;min-width:300px;border:1px solid var(--line);border-radius:6px;
+       padding:14px 16px}
+  .col h3{font-size:13px;letter-spacing:.08em;margin-bottom:10px}
+  .col.naked h3{color:var(--err)} .col.safe h3{color:var(--first)}
+  .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));
+         gap:8px;margin-bottom:12px;min-height:56px}
+  .chip{border:1px solid var(--line);border-radius:4px;padding:6px 8px;
+        font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.5}
+  .chip.ok{border-color:#2E5F4A}
+  .chip.retried{border-color:var(--llm)}
+  .chip.fail{border-color:var(--err);color:var(--err)}
+  .stat{display:flex;gap:18px;font-size:12.5px}
+  .stat b{font-family:"IBM Plex Mono",monospace;font-size:18px;display:block}
+  .stat .bad b{color:var(--err)} .stat .good b{color:var(--first)}
+  .empty{color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>LATENCY <b>LAB</b> &middot; AI companion app</h1>
+  <span class="mode">MODE: {{ 'MOCK (zero-cost simulation)' if mock else 'REAL (ElevenLabs API, uses credits)' }}</span>
+</header>
+<main>
+
+  <!-- ================= Experiment A ================= -->
+  <section>
+    <h2>Experiment A &middot; Time to first audio: serial pipeline vs sentence streaming</h2>
+    <p class="sub">
+      <b>Before:</b> wait for the full LLM response, send it to TTS in one call, and only then
+      does the user hear anything.<br>
+      <b>After:</b> as soon as the LLM has emitted one complete sentence, send it to the
+      streaming endpoint. The first sentence is already playing while the LLM writes the rest.<br>
+      Pressing the button actually runs both pipelines. The timeline below is measured, not animated.
+    </p>
+    <button class="go" id="runLat" onclick="runLatency()">&#9654; Run the comparison</button>
+
+    <div class="clocks" id="clocks" style="display:none">
+      <div class="clock before"><div class="l">TTFB before (serial)</div><div class="n" id="ttfbA">&mdash;</div></div>
+      <div class="clock after"><div class="l">TTFB after (sentence streaming)</div><div class="n" id="ttfbB">&mdash;</div></div>
+      <div class="clock gain"><div class="l">Speedup</div><div class="n" id="gain">&mdash;</div></div>
+    </div>
+    <div id="lanes"></div>
+    <div class="legend" id="legend" style="display:none">
+      <span><i class="dot" style="background:var(--llm)"></i>LLM generation</span>
+      <span><i class="dot" style="background:var(--tts)"></i>TTS generation</span>
+      <span><i class="dot" style="background:var(--first);border-radius:0;width:2px"></i>user hears first audio</span>
+    </div>
+  </section>
+
+  <!-- ================= Experiment B ================= -->
+  <section>
+    <h2>Experiment B &middot; 429s under load: naked client vs SafeClient wrapper</h2>
+    <p class="sub">
+      Ten requests fired at once against a backend with a capacity of three &mdash; a small
+      traffic spike.<br>
+      <b>Naked:</b> call the API and hand any error straight to the user.<br>
+      <b>SafeClient:</b> three layers &mdash; a concurrency gate (do not overload), queueing
+      (do not drop), and backoff with jitter (do not give up).<br>
+      Every chip below is the outcome of one real request.
+    </p>
+    <div class="stressbtns">
+      <button class="go" id="btnNaked" onclick="runStress('naked')">&#9654; Naked &times;10</button>
+      <button class="go" id="btnSafe" onclick="runStress('safe')">&#9654; SafeClient &times;10</button>
+    </div>
+    <div class="cols">
+      <div class="col naked">
+        <h3>NAKED CLIENT</h3>
+        <div class="chips" id="chips-naked"><span class="empty">Not run yet</span></div>
+        <div class="stat" id="stat-naked"></div>
+      </div>
+      <div class="col safe">
+        <h3>SAFECLIENT</h3>
+        <div class="chips" id="chips-safe"><span class="empty">Not run yet</span></div>
+        <div class="stat" id="stat-safe"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------- Experiment A ---------- */
+async function runLatency(){
+  const btn = document.getElementById("runLat");
+  btn.disabled = true; btn.textContent = "Measuring… (runs both pipelines, 5-8 seconds)";
+  const serial = await (await fetch("/api/latency/serial", {method:"POST"})).json();
+  const stream = await (await fetch("/api/latency/streaming", {method:"POST"})).json();
+  btn.disabled = false; btn.textContent = "▶ Run again";
+
+  document.getElementById("clocks").style.display = "flex";
+  document.getElementById("legend").style.display = "flex";
+  document.getElementById("ttfbA").innerHTML = serial.ttfb.toFixed(2) + "<small> s</small>";
+  document.getElementById("ttfbB").innerHTML = stream.ttfb.toFixed(2) + "<small> s</small>";
+  document.getElementById("gain").innerHTML =
+      (serial.ttfb / stream.ttfb).toFixed(1) + "<small> ×</small>";
+
+  const maxT = Math.max(serial.total, stream.total);
+  document.getElementById("lanes").innerHTML =
+      lane("before (serial)", serial, maxT) + lane("after (sentence streaming)", stream, maxT);
+}
+function lane(name, run, maxT){
+  const pct = t => (t / maxT * 100).toFixed(2) + "%";
+  let segs = run.events.map(e =>
+    `<div class="seg ${e.type}" style="left:${pct(e.start)};width:${pct(e.end - e.start)}"
+          title="${e.label} ${e.start}s to ${e.end}s">${e.label}</div>`).join("");
+  segs += `<div class="mark" style="left:${pct(run.ttfb)}"></div>`;
+  return `<div class="lane"><div class="name">${name} &nbsp; total ${run.total}s</div>
+          <div class="track">${segs}</div>
+          <div class="ruler"><span>0s</span><span>${(maxT/2).toFixed(1)}s</span><span>${maxT.toFixed(1)}s</span></div></div>`;
+}
+
+/* ---------- Experiment B ---------- */
+async function runStress(kind){
+  const btn = document.getElementById(kind === "naked" ? "btnNaked" : "btnSafe");
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "Firing…";
+  const r = await (await fetch(`/api/stress/${kind}?n=10`, {method:"POST"})).json();
+  btn.disabled = false; btn.textContent = label;
+
+  document.getElementById("chips-" + kind).innerHTML = r.results.map(x => {
+    const cls  = !x.ok ? "fail" : (x.attempts > 1 ? "retried" : "ok");
+    const note = !x.ok ? "✗ error"
+                       : (x.attempts > 1 ? `↻ ${x.attempts} tries` : "✓ first try");
+    return `<div class="chip ${cls}">#${x.id}<br>${note}<br>${x.duration}s</div>`;
+  }).join("");
+
+  document.getElementById("stat-" + kind).innerHTML = `
+    <span class="${r.user_errors ? 'bad' : 'good'}"><b>${r.user_errors}</b>errors seen by users</span>
+    <span><b>${r.retried}</b>saved by retry</span>
+    <span><b>${r.total_time}s</b>total</span>`;
+}
+</script>
+</body>
+</html>
