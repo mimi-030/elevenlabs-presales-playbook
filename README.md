@@ -44,19 +44,6 @@ elevenlabs-production-patterns/
 └── 06-batch-registry/     voice registry + manifest-driven batch with retry
 ```
 
-## What it looks like
-
-<table>
-<tr>
-<td width="50%"><img src="docs/screenshots/5001.png" alt="Audio admin console"><br><sub><b>01</b> Publish-time generation with a content-fingerprint cache</sub></td>
-<td width="50%"><img src="docs/screenshots/5002.png" alt="Latency lab"><br><sub><b>02</b> Measured TTFB comparison and a 429 stress test</sub></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/5004.png" alt="Dubbing review board"><br><sub><b>04</b> Review state machine with an audit trail</sub></td>
-<td><img src="docs/screenshots/5006.png" alt="Batch console"><br><sub><b>06</b> Voice registry and manifest-driven retry</sub></td>
-</tr>
-</table>
-
 ## Who this is for
 
 Solutions engineers, solutions architects, and pre-sales technical staff who have to sit
