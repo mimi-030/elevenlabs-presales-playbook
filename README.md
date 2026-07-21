@@ -14,7 +14,7 @@ This repository is two halves that depend on each other:
 1. **[The interview guide](docs/presales-guide.md)** — what to ask a customer, per scenario,
    under four headings: Volume, Legal, Integration, Metrics. Plus the pitfall table: the
    failure modes we hit, their symptoms, and the fix.
-2. **Six proofs of concept** — one per pattern, each **runnable with no API key**, so when a
+2. **Six proofs of concept** — one per pattern, each can run with/without API key, so when a
    customer asks "can you show me?" you have something on screen in two minutes.
 
 Written from a solutions engineer's point of view: ask the right questions first, then draw
