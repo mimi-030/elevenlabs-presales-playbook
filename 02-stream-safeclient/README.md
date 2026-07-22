@@ -2,6 +2,8 @@
 
 # Latency & 429 Lab — Streaming + SafeClient (Scenario 2)
 
+**Read the Case Study:** [From 3.6s to 0.9s: Cutting Voice Latency with Sentence Streaming](https://medium.com/@mimichen123/from-4-1s-to-0-8s-cutting-voice-latency-with-sentence-streaming-681497d5d94e)
+
 Customer scenario: an AI companion app with two complaints — **users wait 5 seconds before hearing anything**, and **429 storms at peak hours**. This lab runs both fixes in a web UI and *measures* them instead of explaining them:
 
 - **Experiment A | TTFB comparison**: serial pipeline (wait for the full LLM answer -> one TTS call) vs sentence streaming (fire streaming TTS as soon as the first sentence is complete). The timeline is a **real measured Gantt chart**, not an animation — after the fix, the LLM track (amber) and TTS track (blue) overlap; the green marker = the moment the user hears the first sound.
