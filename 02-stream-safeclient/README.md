@@ -2,7 +2,9 @@
 
 # Latency & 429 Lab — Streaming + SafeClient (Scenario 2)
 
-**Read the Case Study:** [From 3.6s to 0.9s: Cutting Voice Latency with Sentence Streaming](https://medium.com/@mimichen123/from-4-1s-to-0-8s-cutting-voice-latency-with-sentence-streaming-681497d5d94e)
+**Read the Case Study:** 
+- [From 3.6s to 0.9s: Cutting Voice Latency with Sentence Streaming](https://medium.com/@mimichen123/from-4-1s-to-0-8s-cutting-voice-latency-with-sentence-streaming-681497d5d94e) 
+- [Stop DDoSing Yourself: A Three-Layer Client for Rate-Limited TTS APIs](https://medium.com/@mimichen123/stop-ddosing-yourself-a-three-layer-client-for-rate-limited-tts-apis-d0a8042b07bf?sharedUserId=mimichen123) 
 
 Customer scenario: an AI companion app with two complaints — **users wait 5 seconds before hearing anything**, and **429 storms at peak hours**. This lab runs both fixes in a web UI and *measures* them instead of explaining them:
 
