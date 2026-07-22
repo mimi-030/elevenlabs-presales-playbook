@@ -1,6 +1,7 @@
 **English** | [繁體中文](README.zh-TW.md)
 
 # Publisher TTS Pipeline — "Meridian Financial" (Scenario 1)
+**Read the Case Study:** [Generate Once, Play a Million Times: How to Not Waste Your TTS Budget](https://medium.com/@mimichen123/generate-once-play-a-million-times-how-to-not-waste-your-tts-budget-3a58711b4e40)
 
 Simulates a publisher's full article-to-audio flow: a **reader-facing article page** (instant playback of pre-generated audio) plus an **editor-facing audio admin panel** (generate / cache / retry failures / cost tracking).
 
