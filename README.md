@@ -51,9 +51,6 @@ across from a customer and scope a voice AI project — the point where "does th
 is already answered and the real questions are cost, latency, concurrency, review workflow,
 and voice licensing.
 
-It is also useful the other way round: if you are the customer, these are the questions a
-good vendor should be asking you.
-
 **Time to run:** any scenario, about two minutes, no API key, no account.
 
 ## Discovery in four questions
