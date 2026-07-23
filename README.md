@@ -1,6 +1,6 @@
 **English** | [繁體中文](README.zh-TW.md)
 
-# ElevenLabs Pre-Sales Field Guide
+# Voice AI Pre-Sales & PoC Field Guide (for ElevenLabs Integration)
 
 **How to run a discovery call for a voice AI project — and six runnable PoCs that answer
 the questions the call raises.**
