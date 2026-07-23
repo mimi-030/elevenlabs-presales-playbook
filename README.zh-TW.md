@@ -1,6 +1,6 @@
 [English](README.md) | **繁體中文**
 
-# ElevenLabs 售前實戰手冊
+# AI語音售前實戰手冊
 
 **怎麼跑一場語音 AI 專案的 discovery call —— 以及六個可直接執行的 PoC，
 用來回答那場對話裡冒出來的問題。**
